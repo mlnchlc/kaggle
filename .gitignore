@@ -1,0 +1,43 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+
+# Competition Data & Archives (auto-downloaded via kaggle_utils)
+**/data/
+*.zip
+*.tar.gz
+*.parquet
+*.feather
+
+# Submission files
+*submission*.csv
+**/submission*.csv
+
+# Model Artifacts, Logs & Checkpoints
+catboost_info/
+wandb/
+*.log
+*.sqlite3
+
+# OS / Editor files
+.DS_Store
+Thumbs.db
+
+# Secrets (API keys, tokens)
+.env
+
+# Never commit data or local tooling state
+*.csv
+**/output/
+.claude/
