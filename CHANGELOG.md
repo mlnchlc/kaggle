@@ -2,6 +2,25 @@
 
 All notable changes to these Kaggle notebooks. Dates are when the change was made.
 
+## 2026-10-31
+
+Older entries below use the original file names and paths.
+
+### Added
+- **`scripts/`**: every notebook as a plain `# %%` percent-format `.py` file (jupytext, no outputs) for agentic work. Names match the notebooks.
+- `advanced house prices` notebook (`house-prices-advanced-regression-techniques-xgb`) and `CLAUDE.md`.
+
+### Changed
+- **Flat layout.** The per-competition folders are gone. Notebooks live in `notebooks/` and are named `<kaggle-slug>-<tag>.ipynb` (`titanic-xgb`, `titanic-forest`, `spaceship-titanic-xgb`, `playground-series-s6e10-airline-xgb`, `playground-series-s6e10-airline-tabpfn`, `house-prices-advanced-regression-techniques-xgb`).
+- **One shared `data/<slug>/` folder at the repo root** (gitignored) for both `notebooks/` and `scripts/`, replacing a `data/` folder per competition. Notebooks and scripts set `data_dir = ../data/<slug>` and run from their own folder.
+- `kaggle_utils.py` symlinks now live in `notebooks/` and `scripts/` (relative, to the root copy).
+
+### Removed
+- `Titanic/titanic_solution.ipynb` (an early attempt) and the older standalone scripts `pipeline.py`, `titanic_mine.py`, `train_titanic.py`, `train_titanic_ml_only.py`.
+
+### Security
+- The repo was published with a fresh single-commit history, because earlier commits contained competition data. Notebook outputs showing data rows, the Kaggle username and local paths are stripped before commit.
+
 ## 2026-10-17
 
 ### Added
