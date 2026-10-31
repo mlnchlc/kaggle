@@ -258,7 +258,7 @@ print(f"Saved submission to {kaggle_output_file} ({len(submission)} rows)")
 # 7. Auto-submit to Kaggle and retrieve public score
 from kaggle_utils import submit_prediction
 
-submit_prediction(
+submission_result = submit_prediction(
     file_path=kaggle_output_file,
     competition="spaceship-titanic",
     message="XGBoost pipeline with Optuna tuning and feature engineering",
@@ -266,3 +266,14 @@ submit_prediction(
     timeout=60
 )
 
+# %%
+# 8. Log this run (score history lives in runs.jsonl at the repo root; read it with load_runs())
+from kaggle_utils import log_run
+
+log_run(
+    "spaceship-titanic", "xgb", metric="accuracy",
+    cv_mean=study.best_value, params=study.best_params, seed=42, features=X.shape[1],
+    public_score=getattr(submission_result, "public_score", None),
+    submission_file=kaggle_output_file,
+    extra={"cv": "5-fold StratifiedGroupKFold (best Optuna trial)", "tune_trials": len(study.trials)},
+)

@@ -287,3 +287,16 @@ probabilities = best_model.predict_proba(X_kaggle_test)[:, 1]
 submission = pd.DataFrame({'PassengerId': kaggle_test_df['PassengerId'], 'Survived': predictions})
 submission.to_csv(kaggle_output_file, index=False)
 
+# %%
+# Log this run (score history lives in runs.jsonl at the repo root; read it with load_runs()).
+# This script does not submit to Kaggle, so there is no public score; add one by hand if you submit.
+from kaggle_utils import log_run
+
+log_run(
+    "titanic", "xgb", metric="accuracy",
+    cv_mean=cv_scores.mean(), cv_std=cv_scores.std(),
+    params=study.best_params, seed=42, features=X.shape[1],
+    submission_file=kaggle_output_file,
+    extra={"cv": "5-fold stratified on the training split", "tune_best_accuracy": study.best_value,
+           "tune_trials": len(study.trials)},
+)

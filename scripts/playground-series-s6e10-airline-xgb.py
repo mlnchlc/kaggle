@@ -292,7 +292,7 @@ print(f"Saved submission to {kaggle_output_file} ({len(submission)} rows)")
 # 7. Auto-submit to Kaggle and retrieve public score
 from kaggle_utils import submit_prediction
 
-submit_prediction(
+submission_result = submit_prediction(
     file_path=kaggle_output_file,
     competition="playground-series-s6e10",
     message="XGBoost 5-fold with early stopping, native categoricals, Optuna tuning",
@@ -302,3 +302,17 @@ submit_prediction(
 
 # %%
 show_submissions(competition="playground-series-s6e10", n = 10)
+
+# %%
+# 8. Log this run (score history lives in runs.jsonl at the repo root; read it with load_runs())
+from kaggle_utils import log_run
+
+log_run(
+    "playground-series-s6e10", "xgb", metric="roc_auc",
+    cv_mean=np.mean(result["fold_scores"]), cv_std=np.std(result["fold_scores"]),
+    params=final_params, seed=42, features=X.shape[1],
+    public_score=getattr(submission_result, "public_score", None),
+    submission_file=kaggle_output_file,
+    extra={"oof_auc": result["oof_auc"], "cv": "5-fold stratified",
+           "tune_trials": len(study.trials), "tune_best_auc": study.best_value, "tune_sample_size": TUNE_SAMPLE_SIZE},
+)

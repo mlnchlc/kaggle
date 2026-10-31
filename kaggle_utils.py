@@ -155,6 +155,14 @@ def _json_default(obj):
     return str(obj)
 
 
+def _to_float(value):
+    """float(value), or None for None, empty or non-numeric values (e.g. a score that timed out)."""
+    try:
+        return None if value in (None, "") else float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _git_state():
     """Short commit hash and whether the working tree has uncommitted changes (None if not a repo)."""
     root = Path(__file__).resolve().parent
@@ -207,7 +215,7 @@ def log_run(competition: str, model: str, metric: str, cv_mean: float, cv_std: f
         "metric": metric,
         "cv_mean": cv_mean,
         "cv_std": cv_std,
-        "public_score": None if public_score is None else float(public_score),
+        "public_score": _to_float(public_score),
         "params": params or {},
         "seed": seed,
         "features": features,

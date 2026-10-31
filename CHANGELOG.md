@@ -16,7 +16,7 @@ Older entries below use the original file names and paths.
 - `kaggle_utils.py` symlinks now live in `notebooks/` and `scripts/` (relative, to the root copy).
 
 ### Added (experiment log)
-- **`log_run()` and `load_runs()` in `kaggle_utils.py`.** `log_run` appends one JSON line per finished run (metric, CV mean/std, public score, params, seed, git commit and dirty flag, library versions) to `runs.jsonl` at the repo root; `load_runs` returns it as a DataFrame. `runs.jsonl` is gitignored. Not yet called from the notebooks or scripts.
+- **`log_run()` and `load_runs()` in `kaggle_utils.py`.** `log_run` appends one JSON line per finished run (metric, CV mean/std, public score, params, seed, git commit and dirty flag, library versions) to `runs.jsonl` at the repo root; `load_runs` returns it as a DataFrame. `runs.jsonl` is gitignored. The four XGBoost scripts (and so their notebooks) call it as their last cell, logging each script's real metric: accuracy for Titanic and Spaceship Titanic, ROC-AUC for Airline, RMSE of log price for House Prices. `titanic-xgb` never submits to Kaggle, so its row has no public score.
 
 ### Changed (push workflow)
 - **`scripts/` is now the source of truth; notebooks are generated.** `tools/regen_notebooks.py` rebuilds `notebooks/<name>.ipynb` from `scripts/<name>.py` with `jupytext --update` (local outputs survive).
