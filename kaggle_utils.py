@@ -3,10 +3,14 @@ Kaggle Automation Utilities: Auto-pull competition data & Auto-submit prediction
 Uses the Kaggle API (authenticated via ~/.kaggle/access_token or ~/.kaggle/kaggle.json).
 """
 
+import json
 import os
+import subprocess
 import sys
 import time
 import zipfile
+from datetime import datetime, timezone
+from pathlib import Path
 from kaggle.api.kaggle_api_extended import KaggleApi
 
 def get_kaggle_api():
@@ -133,3 +137,104 @@ def show_submissions(competition: str, n: int = 5):
     for s in submissions[:n]:
         print(f"[{s.date}] File: {s.file_name:<20} Score: {str(s.public_score):<10} Status: {s.status}")
     return submissions[:n]
+
+
+# --- Experiment log -------------------------------------------------------------------------------
+# One JSON line per finished run in <repo root>/runs.jsonl (gitignored). Resolved from this file's real
+# path, so the symlinks in notebooks/ and scripts/ all write to the same log.
+RUN_LOG = Path(__file__).resolve().parent / "runs.jsonl"
+_TRACKED_LIBS = ("xgboost", "lightgbm", "catboost", "scikit-learn", "optuna", "pandas", "numpy")
+
+
+def _json_default(obj):
+    """Lets numpy scalars/arrays and other odd types in params serialize instead of crashing."""
+    if hasattr(obj, "item") and getattr(obj, "ndim", 1) == 0:
+        return obj.item()
+    if hasattr(obj, "tolist"):
+        return obj.tolist()
+    return str(obj)
+
+
+def _git_state():
+    """Short commit hash and whether the working tree has uncommitted changes (None if not a repo)."""
+    root = Path(__file__).resolve().parent
+    try:
+        commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=root, capture_output=True,
+                                text=True, check=True).stdout.strip()
+        dirty = bool(subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"], cwd=root,
+                                    capture_output=True, text=True, check=True).stdout.strip())
+        return commit, dirty
+    except (OSError, subprocess.CalledProcessError):
+        return None, None
+
+
+def log_run(competition: str, model: str, metric: str, cv_mean: float, cv_std: float = None, params: dict = None,
+            public_score=None, submission_file: str = None, seed: int = None, features=None, notes: str = None,
+            extra: dict = None, log_file=None):
+    """
+    Appends one finished run to the experiment log (one JSON object per line) and returns the record.
+
+    Args:
+        competition: Kaggle competition slug, e.g. 'spaceship-titanic'.
+        model: Short model name, e.g. 'xgb', 'forest', 'tabpfn'.
+        metric: The competition's real metric, e.g. 'roc_auc', 'accuracy', 'rmse_log_price'.
+        cv_mean / cv_std: Cross-validation score (mean and standard deviation across folds).
+        params: Hyperparameters of the final model (numpy types are fine).
+        public_score: Leaderboard score, e.g. from submit_prediction(...).public_score.
+        submission_file: Path of the submitted CSV (only the file name is stored).
+        seed: Random seed used for the final fit and the CV split.
+        features: Feature names, or an int count, used by the model.
+        notes: Free text, e.g. what changed in this run.
+        extra: Anything else worth keeping, e.g. {"optuna_study": "airline-v3", "n_trials": 50}.
+        log_file: Override the default <repo root>/runs.jsonl.
+    """
+    commit, dirty = _git_state()
+    versions = {}
+    try:
+        from importlib import metadata
+        for lib in _TRACKED_LIBS:
+            try:
+                versions[lib] = metadata.version(lib)
+            except metadata.PackageNotFoundError:
+                pass
+    except ImportError:
+        pass
+
+    record = {
+        "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "competition": competition,
+        "model": model,
+        "metric": metric,
+        "cv_mean": cv_mean,
+        "cv_std": cv_std,
+        "public_score": None if public_score is None else float(public_score),
+        "params": params or {},
+        "seed": seed,
+        "features": features,
+        "submission_file": os.path.basename(submission_file) if submission_file else None,
+        "notes": notes,
+        "git_commit": commit,
+        "git_dirty": dirty,
+        "python": sys.version.split()[0],
+        "versions": versions,
+        **(extra or {}),
+    }
+    path = Path(log_file) if log_file else RUN_LOG
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "a") as f:
+        f.write(json.dumps(record, default=_json_default) + "\n")
+    print(f"Logged run to {path}: {competition} / {model} / {metric} cv={cv_mean:.5f}"
+          + (f" public={record['public_score']:.5f}" if record["public_score"] is not None else ""))
+    return record
+
+
+def load_runs(competition: str = None, log_file=None):
+    """Returns the experiment log as a DataFrame (newest last), optionally for one competition."""
+    import pandas as pd
+    path = Path(log_file) if log_file else RUN_LOG
+    if not path.exists():
+        return pd.DataFrame()
+    runs = pd.read_json(path, lines=True)
+    if competition is not None and "competition" in runs:
+        runs = runs[runs["competition"] == competition]
+    return runs.reset_index(drop=True)

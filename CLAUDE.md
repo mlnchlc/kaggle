@@ -14,20 +14,28 @@ Personal Kaggle tabular-competition workspace (the owner is learning ML, aiming 
 
 ## Architecture
 
-- `kaggle_utils.py` at the repo root is the only shared code: `pull_competition_data(slug, data_dir="data")` (downloads and unzips, skips if `train.csv` and `test.csv` exist), `submit_prediction(file, slug, message)` (submits and polls for the public score), `show_submissions(slug, n)`. `notebooks/` and `scripts/` each have a **relative symlink** `kaggle_utils.py -> ../kaggle_utils.py`. Edit only the root copy and keep the symlinks relative. Any new code folder needs the same symlink.
+- `kaggle_utils.py` at the repo root is the only shared code: `pull_competition_data(slug, data_dir="data")` (downloads and unzips, skips if `train.csv` and `test.csv` exist), `submit_prediction(file, slug, message)` (submits and polls for the public score), `show_submissions(slug, n)`, `log_run(...)` (appends one finished run to the experiment log) and `load_runs(slug)` (reads it back as a DataFrame). `notebooks/` and `scripts/` each have a **relative symlink** `kaggle_utils.py -> ../kaggle_utils.py`. Edit only the root copy and keep the symlinks relative. Any new code folder needs the same symlink.
 - Each notebook follows the same flow: pull data into `../data/<slug>/`, feature engineering, tuning, final training, write `../data/<slug>/submission_*.csv`, then `submit_prediction`. All data lives in one shared `data/<slug>/` folder at the repo root (for example `data/titanic/`), used by both `notebooks/` and `scripts/`, so competitions never share a folder and nothing is downloaded twice. Notebooks and scripts run with their own folder as the working directory, hence the `..`. `data/` and submission CSVs are gitignored.
 - Notebooks are named `<kaggle-slug>-<tag>.ipynb`, for example `titanic-xgb.ipynb`, `spaceship-titanic-xgb.ipynb`, `playground-series-s6e10-airline-xgb.ipynb`. Keep new files in this scheme.
+- **Experiment log:** call `log_run(competition, model, metric, cv_mean, cv_std, params, ...)` at the end of every real run, after `submit_prediction` so `public_score=result.public_score` can be passed (it returns the scored submission). It appends one JSON line to `runs.jsonl` at the repo root with the metric name, CV score, public score, hyperparameters, seed, git commit and dirty flag, and library versions. Always pass the competition's real `metric`. `runs.jsonl` is gitignored (it holds leaderboard scores); read it with `load_runs("titanic")` to see what has already been tried before starting a new experiment.
 - Competition slugs are passed to `pull_competition_data` and `submit_prediction` as string literals, for example `"playground-series-s6e10"`.
 - The Airline XGBoost notebook is the most developed template:
   - `engineer_features` is a stateless row-wise function, so there is no cross-row leakage.
   - `run_cv` runs StratifiedKFold with early stopping, returns OOF predictions, and averages test predictions over the fold models.
   - Optuna tunes on a 100k-row subsample (`TUNE_SAMPLE_SIZE`) at a high learning rate. The final run uses all the data at a lower learning rate.
   - SHAP is computed on held-out fold rows only.
-- `scripts/` is the agent-friendly copy of the notebooks, converted with jupytext to `# %%` percent-format `.py` files (no outputs, no metadata header).
+- `scripts/` is the **source of truth**: plain `# %%` percent-format `.py` files (no outputs, no metadata header). Edit and create code here. `notebooks/*.ipynb` are generated from them with jupytext.
   - Names match the notebooks: `<kaggle-slug>-<tag>.py`.
   - Run them from inside `scripts/`: `cd scripts && ../.venv/bin/python <file>.py`. They read and write the same root `data/<slug>/` folders as the notebooks. `scripts/output/` is gitignored.
-  - The notebooks are the originals. Nothing syncs the two sets, so a fix in one must be repeated in the other. To regenerate a script from its notebook: `.venv/bin/jupytext --to py:percent --opt notebook_metadata_filter=-all -o scripts/<name>.py notebooks/<name>.ipynb` (then re-apply the `data_dir` path change if it was lost).
+  - Regenerate notebooks with `python3 tools/regen_notebooks.py` (`scripts/<name>.py` becomes `notebooks/<name>.ipynb`). It uses `jupytext --update`, so outputs already in a local notebook survive. Never hand-edit code in a notebook: the next regeneration overwrites it. A new script needs no other setup.
 - The Titanic and Spaceship notebooks use one `build_pipeline(params)` for tuning, holdout and final fit.
+
+## Pushing (enforced by a hook)
+
+- **Run `bash tools/setup.sh` once in every fresh clone.** It registers the `stripout` clean filter (`.gitattributes` applies it to `*.ipynb`, `tools/strip_outputs.py`) and sets `core.hooksPath` to `tools/hooks`. Both are local git config, so they do not travel with the repo.
+- The filter removes all cell outputs from what git stores, so notebook outputs (which can hold the Kaggle username, local paths and data rows) are never committed. Working copies keep their outputs, and `git status` ignores output-only changes.
+- `tools/hooks/pre-push` runs on every `git push`. It regenerates the notebooks from `scripts/`. If that changes anything it blocks the push: review, `git add notebooks`, commit, push again. It then scans every commit being pushed and blocks on data or cache files (csv, npy, `data/`, `.env`), the Kaggle username, key and token patterns, local `/home/ubuntu` paths, secret values from `.env` or `~/.kaggle`, and notebooks that carry outputs.
+- So the push order is: edit `scripts/`, run `tools/regen_notebooks.py`, commit scripts and notebooks together, push. Do not use `--no-verify`, and never `git add -f` anything the hook blocks.
 
 ## Conventions that matter
 

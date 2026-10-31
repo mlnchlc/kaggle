@@ -41,3 +41,6 @@ Thumbs.db
 *.csv
 **/output/
 .claude/
+
+# Local experiment log (scores, params); see log_run in kaggle_utils.py
+runs.jsonl

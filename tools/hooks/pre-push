@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Pre-push: regenerate notebooks from scripts/, then block the push if anything is stale or leaky.
+# Enabled by tools/setup.sh (core.hooksPath). Bypass in an emergency with: git push --no-verify
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+fail() { echo "pre-push: BLOCKED - $*" >&2; exit 1; }
+
+git config --get filter.stripout.clean >/dev/null || fail "output-stripping filter not configured. Run: bash tools/setup.sh"
+
+# 1. Regenerate notebooks from scripts (local outputs are kept; git stores them stripped)
+python3 tools/regen_notebooks.py >/dev/null || fail "tools/regen_notebooks.py failed. Run it by hand to see why."
+if ! git diff --quiet -- notebooks; then
+  git status --short -- notebooks >&2
+  fail "notebooks differ from scripts/ (out of date, or committed with outputs); they were just regenerated. Review, 'git add notebooks', commit, then push again."
+fi
+
+# 2. Scan everything that is about to be pushed
+zero=0000000000000000000000000000000000000000
+pattern='manicmelon|submittedBy|teamName|/Users/|gh[pousr]_[A-Za-z0-9]{20,}|KGAT_|AKIA[0-9A-Z]{16}|eyJ[A-Za-z0-9_-]{20,}\.|BEGIN [A-Z ]*PRIVATE KEY|sk-[A-Za-z0-9]{20,}'
+bad_files='\.(csv|zip|parquet|npy|npz|pkl|joblib)$|(^|/)\.env|(^|/)data/|__pycache__|catboost_info|ipynb_checkpoints'
+
+secret_values() {  # values from .env and the Kaggle credentials; never printed
+  { cut -d= -f2- .env; python3 -c "import json,os;print(json.load(open(os.path.expanduser('~/.kaggle/kaggle.json'))).get('key',''))"; cat ~/.kaggle/access_token; } 2>/dev/null \
+    | tr -d "\"'" | awk 'length($0)>=8'
+}
+vals=$(mktemp); secret_values > "$vals"; trap 'rm -f "$vals"' EXIT
+
+while read -r _lref lsha _rref rsha; do
+  [ -z "${lsha:-}" ] || [ "$lsha" = "$zero" ] && continue  # deleting a ref: nothing to scan
+  if [ "$rsha" = "$zero" ]; then range="$lsha"; else range="$rsha..$lsha"; fi
+
+  for c in $(git rev-list "$range"); do
+    short=$(git rev-parse --short "$c")
+    if git diff-tree -r --root --no-commit-id --name-only --diff-filter=AM -m "$c" | grep -qiE "$bad_files"; then
+      fail "commit $short adds data, cache or secret files:
+$(git diff-tree -r --root --no-commit-id --name-only --diff-filter=AM -m "$c" | grep -iE "$bad_files")"
+    fi
+    hits=$(git grep -lIE "$pattern" "$c" -- notebooks scripts kaggle_utils.py CLAUDE.md CHANGELOG.md .gitignore)
+    [ -z "$hits" ] || fail "commit $short contains a username, key or token pattern in: $hits"
+    hits=$(git grep -lIF '/home/ubuntu' "$c" -- notebooks scripts)
+    [ -z "$hits" ] || fail "commit $short contains a local path in: $hits"
+    if [ -s "$vals" ]; then
+      hits=$(git grep -lIF -f "$vals" "$c")
+      [ -z "$hits" ] || fail "commit $short contains a secret VALUE from .env or ~/.kaggle in: $hits"
+    fi
+  done
+
+  # notebooks must reach GitHub without outputs
+  for nb in $(git ls-tree -r --name-only "$lsha" -- notebooks | grep '\.ipynb$'); do
+    git show "$lsha:$nb" | python3 -c "
+import json, sys
+nb = json.load(sys.stdin)
+sys.exit(any(c.get('outputs') for c in nb['cells'] if c['cell_type'] == 'code'))" \
+      || fail "$nb has outputs in the commit being pushed. Run: bash tools/setup.sh && git add --renormalize notebooks"
+  done
+done
+
+echo "pre-push: notebooks in sync with scripts, nothing sensitive found." >&2

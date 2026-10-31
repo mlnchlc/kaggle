@@ -15,6 +15,14 @@ Older entries below use the original file names and paths.
 - **One shared `data/<slug>/` folder at the repo root** (gitignored) for both `notebooks/` and `scripts/`, replacing a `data/` folder per competition. Notebooks and scripts set `data_dir = ../data/<slug>` and run from their own folder.
 - `kaggle_utils.py` symlinks now live in `notebooks/` and `scripts/` (relative, to the root copy).
 
+### Added (experiment log)
+- **`log_run()` and `load_runs()` in `kaggle_utils.py`.** `log_run` appends one JSON line per finished run (metric, CV mean/std, public score, params, seed, git commit and dirty flag, library versions) to `runs.jsonl` at the repo root; `load_runs` returns it as a DataFrame. `runs.jsonl` is gitignored. Not yet called from the notebooks or scripts.
+
+### Changed (push workflow)
+- **`scripts/` is now the source of truth; notebooks are generated.** `tools/regen_notebooks.py` rebuilds `notebooks/<name>.ipynb` from `scripts/<name>.py` with `jupytext --update` (local outputs survive).
+- **Notebook outputs are never committed.** A `stripout` git clean filter (`.gitattributes`, `tools/strip_outputs.py`) strips them on commit, so the manual scrub before each push is gone.
+- **`tools/hooks/pre-push`** regenerates the notebooks and blocks the push if they changed or if any commit being pushed contains data files, the Kaggle username, key or token patterns, local paths, secret values or notebook outputs. Run `bash tools/setup.sh` once per clone to enable it.
+
 ### Removed
 - `Titanic/titanic_solution.ipynb` (an early attempt) and the older standalone scripts `pipeline.py`, `titanic_mine.py`, `train_titanic.py`, `train_titanic_ml_only.py`.
 
