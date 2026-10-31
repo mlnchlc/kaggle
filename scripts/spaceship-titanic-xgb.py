@@ -174,7 +174,16 @@ def objective(trial):
 # %%
 
 # 4. Run the search
-study = optuna.create_study(direction="maximize")
+from datetime import datetime
+
+# Every trial is stored in <data_dir>/optuna.db (gitignored). One study per run, named by timestamp, so trials
+# from different feature sets or CV setups never mix. Reload later: optuna.load_study(study_name=..., storage=...)
+STUDY_NAME = f"spaceship-titanic-xgb-{datetime.now():%Y%m%d-%H%M%S}"
+study = optuna.create_study(
+    study_name=STUDY_NAME,
+    storage="sqlite:///" + os.path.join(data_dir, "optuna.db"),
+    direction="maximize",
+)
 study.optimize(objective, n_trials=30)
 
 print("Best CV accuracy:", study.best_value)
@@ -275,5 +284,5 @@ log_run(
     cv_mean=study.best_value, params=study.best_params, seed=42, features=X.shape[1],
     public_score=getattr(submission_result, "public_score", None),
     submission_file=kaggle_output_file,
-    extra={"cv": "5-fold StratifiedGroupKFold (best Optuna trial)", "tune_trials": len(study.trials)},
+    extra={"cv": "5-fold StratifiedGroupKFold (best Optuna trial)", "tune_trials": len(study.trials), "optuna_study": STUDY_NAME},
 )

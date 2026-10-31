@@ -18,6 +18,10 @@ Older entries below use the original file names and paths.
 ### Added (experiment log)
 - **`log_run()` and `load_runs()` in `kaggle_utils.py`.** `log_run` appends one JSON line per finished run (metric, CV mean/std, public score, params, seed, git commit and dirty flag, library versions) to `runs.jsonl` at the repo root; `load_runs` returns it as a DataFrame. `runs.jsonl` is gitignored. The four XGBoost scripts (and so their notebooks) call it as their last cell, logging each script's real metric: accuracy for Titanic and Spaceship Titanic, ROC-AUC for Airline, RMSE of log price for House Prices. `titanic-xgb` never submits to Kaggle, so its row has no public score.
 
+### Added (Optuna storage, log_run everywhere)
+- **Optuna trials are persisted.** All five tuning scripts write to `data/<slug>/optuna.db` (SQLite, gitignored) instead of an in-memory study. Each run creates a new study named `<script>-<timestamp>`, so trials from different feature sets never mix; the name is stored in the run's log record as `optuna_study`.
+- **Every script now logs its run.** `titanic-forest` (accuracy; Optuna tunes ROC-AUC, the logged CV score is the accuracy that Kaggle uses) and the TabPFN script (ROC-AUC, plus the holdout AUC) were the last two without a `log_run` cell.
+
 ### Changed (push workflow)
 - **`scripts/` is now the source of truth; notebooks are generated.** `tools/regen_notebooks.py` rebuilds `notebooks/<name>.ipynb` from `scripts/<name>.py` with `jupytext --update` (local outputs survive).
 - **Notebook outputs are never committed.** A `stripout` git clean filter (`.gitattributes`, `tools/strip_outputs.py`) strips them on commit, so the manual scrub before each push is gone.

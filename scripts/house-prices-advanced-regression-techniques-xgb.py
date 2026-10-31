@@ -242,7 +242,14 @@ def objective(trial):
 
 # Seeded sampler -> re-running the notebook reproduces the same search.
 # direction="minimize": lower RMSE is better.
+from datetime import datetime
+
+# Every trial is stored in <data_dir>/optuna.db (gitignored). One study per run, named by timestamp, so trials
+# from different feature sets or CV setups never mix. Reload later: optuna.load_study(study_name=..., storage=...)
+STUDY_NAME = f"house-prices-advanced-regression-techniques-xgb-{datetime.now():%Y%m%d-%H%M%S}"
 study = optuna.create_study(
+    study_name=STUDY_NAME,
+    storage="sqlite:///" + os.path.join(data_dir, "optuna.db"),
     direction="minimize",
     sampler=optuna.samplers.TPESampler(seed=42),
     pruner=optuna.pruners.MedianPruner(n_startup_trials=5),
@@ -360,5 +367,5 @@ log_run(
     public_score=getattr(submission_result, "public_score", None),
     submission_file=kaggle_output_file,
     extra={"oof_rmse": result["oof_rmse"], "cv": "5-fold KFold",
-           "tune_trials": len(study.trials), "tune_best_rmse": study.best_value},
+           "tune_trials": len(study.trials), "optuna_study": STUDY_NAME, "tune_best_rmse": study.best_value},
 )

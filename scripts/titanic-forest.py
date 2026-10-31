@@ -223,7 +223,16 @@ def objective(trial):
 
 # %%
 # 4. Run the search
-study = optuna.create_study(direction="maximize")
+from datetime import datetime
+
+# Every trial is stored in <data_dir>/optuna.db (gitignored). One study per run, named by timestamp, so trials
+# from different feature sets or CV setups never mix. Reload later: optuna.load_study(study_name=..., storage=...)
+STUDY_NAME = f"titanic-forest-{datetime.now():%Y%m%d-%H%M%S}"
+study = optuna.create_study(
+    study_name=STUDY_NAME,
+    storage="sqlite:///" + os.path.join(data_dir, "optuna.db"),
+    direction="maximize",
+)
 study.optimize(objective, n_trials=30)
 
 print("Best CV ROC-AUC:", study.best_value)
@@ -290,3 +299,18 @@ probabilities = best_model.predict_proba(X_kaggle_test)[:, 1]
 
 submission = pd.DataFrame({'PassengerId': kaggle_test_df['PassengerId'], 'Survived': predictions})
 submission.to_csv(kaggle_output_file, index=False)
+
+# %%
+# Log this run (score history lives in runs.jsonl at the repo root; read it with load_runs()).
+# This script does not submit to Kaggle, so there is no public score; add one by hand if you submit.
+# Optuna tuned ROC-AUC, but Titanic is scored on accuracy, so the logged CV score is the accuracy.
+from kaggle_utils import log_run
+
+log_run(
+    "titanic", "forest", metric="accuracy",
+    cv_mean=cv_scores.mean(), cv_std=cv_scores.std(),
+    params=study.best_params, seed=42, features=X.shape[1],
+    submission_file=kaggle_output_file,
+    extra={"cv": "5-fold stratified on the training split", "tune_metric": "roc_auc",
+           "tune_best_roc_auc": study.best_value, "tune_trials": len(study.trials), "optuna_study": STUDY_NAME},
+)
