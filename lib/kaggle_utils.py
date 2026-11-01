@@ -142,7 +142,7 @@ def show_submissions(competition: str, n: int = 5):
 # --- Experiment log -------------------------------------------------------------------------------
 # One JSON line per finished run in <repo root>/runs.jsonl (gitignored). Resolved from this file's real
 # path, so the symlinks in notebooks/ and scripts/ all write to the same log.
-RUN_LOG = Path(__file__).resolve().parent / "runs.jsonl"
+RUN_LOG = Path(__file__).resolve().parent.parent / "runs.jsonl"
 _TRACKED_LIBS = ("xgboost", "lightgbm", "catboost", "scikit-learn", "optuna", "pandas", "numpy")
 
 

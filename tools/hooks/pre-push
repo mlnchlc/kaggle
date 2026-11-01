@@ -36,7 +36,7 @@ while read -r _lref lsha _rref rsha; do
       fail "commit $short adds data, cache or secret files:
 $(git diff-tree -r --root --no-commit-id --name-only --diff-filter=AM -m "$c" | grep -iE "$bad_files")"
     fi
-    hits=$(git grep -lIE "$pattern" "$c" -- notebooks scripts kaggle_utils.py CLAUDE.md CHANGELOG.md .gitignore)
+    hits=$(git grep -lIE "$pattern" "$c" -- notebooks scripts lib/kaggle_utils.py CLAUDE.md CHANGELOG.md .gitignore)
     [ -z "$hits" ] || fail "commit $short contains a username, key or token pattern in: $hits"
     hits=$(git grep -lIF '/home/ubuntu' "$c" -- notebooks scripts)
     [ -z "$hits" ] || fail "commit $short contains a local path in: $hits"

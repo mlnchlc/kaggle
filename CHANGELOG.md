@@ -22,6 +22,18 @@ Older entries below use the original file names and paths.
 - **Optuna trials are persisted.** All five tuning scripts write to `data/<slug>/optuna.db` (SQLite, gitignored) instead of an in-memory study. Each run creates a new study named `<script>-<timestamp>`, so trials from different feature sets never mix; the name is stored in the run's log record as `optuna_study`.
 - **Every script now logs its run.** `titanic-forest` (accuracy; Optuna tunes ROC-AUC, the logged CV score is the accuracy that Kaggle uses) and the TabPFN script (ROC-AUC, plus the holdout AUC) were the last two without a `log_run` cell.
 
+### Added (airline experiments)
+- **`playground-series-s6e10-airline-xgb-allfeat`**: the clean XGBoost plus every feature from a public notebook (frequency encoding over train + test, route IDs and counts from Flight Distance, digit features, fold-safe target-encoded pairs). Local 5-fold ROC-AUC 0.96076 at learning rate 0.05, against 0.95892 for the clean model at the same rate with generic parameters. It breaks the logical-features rule on purpose and is an experiment.
+- **`playground-series-s6e10-airline-xgb-top`**: a port of that public notebook (public CV 0.96096), credited in its header. It runs on CPU by default; the original learning rate of 0.005 takes many hours without a GPU. Only a short smoke test was run.
+- Tested and not adopted for the clean script: target-encoded rating pairs alone (no gain) and a learning rate of 0.02 instead of 0.05 (+0.0001 AUC at twice the run time).
+
+### Changed (packages)
+- **`uv` replaces pip** for managing `.venv`; pip is uninstalled. Upgraded the venv to current versions, including pandas 3.1, scikit-learn 1.9.1 and pyarrow 26. All scripts except the TabPFN one ran on them.
+- **`pyproject.toml` and `uv.lock`** record the dependencies and exact versions, so `uv sync` rebuilds `.venv`. `uv sync` was run once: it removed `tabpfn-client` and its extras (nothing imports it), which also cleared the pandas, pyarrow and scikit-learn version conflict. The TabPFN script is untested on the new versions.
+
+### Changed (kaggle_utils location)
+- **`kaggle_utils.py` moved from the repo root to `lib/`.** The symlinks in `notebooks/` and `scripts/` now point to `../lib/kaggle_utils.py`; `runs.jsonl` still lives at the repo root. The pre-push scan covers the new path.
+
 ### Changed (push workflow)
 - **`scripts/` is now the source of truth; notebooks are generated.** `tools/regen_notebooks.py` rebuilds `notebooks/<name>.ipynb` from `scripts/<name>.py` with `jupytext --update` (local outputs survive).
 - **Notebook outputs are never committed.** A `stripout` git clean filter (`.gitattributes`, `tools/strip_outputs.py`) strips them on commit, so the manual scrub before each push is gone.

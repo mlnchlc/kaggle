@@ -1,0 +1,41 @@
+[project]
+name = "kaggle-notebooks"
+version = "0.1.0"
+description = "Kaggle tabular competition notebooks (XGBoost, Optuna, TabPFN)"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy",
+    "pandas>=3.1",
+    "scikit-learn>=1.9.1",
+    "scipy",
+    "matplotlib",
+    "seaborn",
+    "xgboost",
+    "lightgbm",
+    "catboost",
+    "optuna",
+    "shap",
+    "torch",
+    "tabpfn",
+    "python-dotenv",
+    "kaggle",
+]
+
+[dependency-groups]
+dev = [
+    "ipykernel",
+    "jupytext",
+    "nbconvert",
+    "nbformat",
+    "ruff",
+]
+
+[tool.uv]
+package = false
+# tabpfn-client pins older pandas / pyarrow / scikit-learn than the scripts run on; override its caps.
+# The TabPFN script has not been run against these versions.
+override-dependencies = [
+    "pandas>=3.1",
+    "pyarrow>=26",
+    "scikit-learn>=1.9.1",
+]
