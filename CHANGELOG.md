@@ -24,6 +24,7 @@ Older entries below use the original file names and paths.
 
 ### Added (Playground S6E11, credit card fraud)
 - **`playground-series-s6e11-fraud-xgb`**: boilerplate XGBoost script written before the data was visible. It detects the target (the column in train but not test) and the ID (first column of the sample submission), shows an overview, runs 5-fold CV with early stopping, Optuna with SQLite storage, a final run, submission and `log_run`. `METRIC` (default ROC-AUC) is an assumption to confirm on the Evaluation tab. Tested only on synthetic data. Accept the rules at the competition's rules page before the first run, or the download fails with a 403.
+- First real run (`max_depth` searched 3-10): CV ROC-AUC 0.94720, public 0.94759. The best depth was 3, the lower bound, so the range now starts at 2: CV 0.94748, public 0.94785, with depth 2 chosen by most trials.
 
 ### Added (airline experiments)
 - **`playground-series-s6e10-airline-xgb-allfeat`**: the clean XGBoost plus every feature from a public notebook (frequency encoding over train + test, route IDs and counts from Flight Distance, digit features, fold-safe target-encoded pairs). Local 5-fold ROC-AUC 0.96076 at learning rate 0.05, against 0.95892 for the clean model at the same rate with generic parameters. It breaks the logical-features rule on purpose and is an experiment.

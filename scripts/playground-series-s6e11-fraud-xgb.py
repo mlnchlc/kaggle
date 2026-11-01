@@ -159,7 +159,7 @@ X_tune, _, y_tune, _ = train_test_split(X, y, train_size=TUNE_SAMPLE_SIZE, rando
 def objective(trial):
     params = {
         "learning_rate": TUNE_LEARNING_RATE,
-        "max_depth": trial.suggest_int("max_depth", 3, 10),
+        "max_depth": trial.suggest_int("max_depth", 2, 10),  # first run's best was 3, the old lower bound
         "min_child_weight": trial.suggest_float("min_child_weight", 1, 10),
         "subsample": trial.suggest_float("subsample", 0.6, 1.0),
         "colsample_bytree": trial.suggest_float("colsample_bytree", 0.6, 1.0),
@@ -223,7 +223,7 @@ from kaggle_utils import submit_prediction
 submission_result = submit_prediction(
     file_path=kaggle_output_file,
     competition=COMPETITION,
-    message="XGBoost 5-fold with early stopping, native categoricals, Optuna tuning",
+    message="XGBoost 5-fold, Optuna with max_depth 2-10",
     wait_for_score=True,
     timeout=60,
 )
