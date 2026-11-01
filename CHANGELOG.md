@@ -22,6 +22,9 @@ Older entries below use the original file names and paths.
 - **Optuna trials are persisted.** All five tuning scripts write to `data/<slug>/optuna.db` (SQLite, gitignored) instead of an in-memory study. Each run creates a new study named `<script>-<timestamp>`, so trials from different feature sets never mix; the name is stored in the run's log record as `optuna_study`.
 - **Every script now logs its run.** `titanic-forest` (accuracy; Optuna tunes ROC-AUC, the logged CV score is the accuracy that Kaggle uses) and the TabPFN script (ROC-AUC, plus the holdout AUC) were the last two without a `log_run` cell.
 
+### Added (Playground S6E11, credit card fraud)
+- **`playground-series-s6e11-fraud-xgb`**: boilerplate XGBoost script written before the data was visible. It detects the target (the column in train but not test) and the ID (first column of the sample submission), shows an overview, runs 5-fold CV with early stopping, Optuna with SQLite storage, a final run, submission and `log_run`. `METRIC` (default ROC-AUC) is an assumption to confirm on the Evaluation tab. Tested only on synthetic data. Accept the rules at the competition's rules page before the first run, or the download fails with a 403.
+
 ### Added (airline experiments)
 - **`playground-series-s6e10-airline-xgb-allfeat`**: the clean XGBoost plus every feature from a public notebook (frequency encoding over train + test, route IDs and counts from Flight Distance, digit features, fold-safe target-encoded pairs). Local 5-fold ROC-AUC 0.96076 at learning rate 0.05, against 0.95892 for the clean model at the same rate with generic parameters. It breaks the logical-features rule on purpose and is an experiment.
 - **`playground-series-s6e10-airline-xgb-top`**: a port of that public notebook (public CV 0.96096), credited in its header. It runs on CPU by default; the original learning rate of 0.005 takes many hours without a GPU. Only a short smoke test was run.
