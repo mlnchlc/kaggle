@@ -246,3 +246,81 @@ def load_runs(competition: str = None, log_file=None):
     if competition is not None and "competition" in runs:
         runs = runs[runs["competition"] == competition]
     return runs.reset_index(drop=True)
+
+
+def compare_oof(y, oof_a, oof_b, names=("A", "B"), metric=None, higher_is_better=True, folds=None,
+                n_splits=5, seed=42, stratified=True, n_boot=200, boot_seed=0, verbose=True):
+    """
+    Paired comparison of two models' out-of-fold predictions on the same rows. Answers "is B really better than A,
+    or is the gap noise?" far more sharply than the fold std of either model, because fold difficulty that both
+    models share cancels out.
+
+    Args:
+        y: true targets (array-like).
+        oof_a / oof_b: OOF predictions, as arrays or paths to .npy files. Must come from the SAME folds.
+        names: labels for A and B in the printout.
+        metric: callable(y_true, y_pred) -> score. Defaults to ROC-AUC.
+        higher_is_better: False for losses (rmse, logloss); the "improvement" is then score_a - score_b.
+        folds: list of (train_idx, valid_idx). If None, rebuilt as (Stratified)KFold(n_splits, shuffle=True,
+            random_state=seed), which matches the scripts' run_cv when seed equals their SEED (42).
+        stratified: use StratifiedKFold (classification) or KFold (regression) when rebuilding folds.
+        n_boot: paired bootstrap resamples of the rows (0 skips the bootstrap; each one rescores both models).
+
+    Returns a dict with per-fold improvements, folds_better, mean, paired SE, t, bootstrap CI and a verdict.
+
+    Not covered: training randomness (another model seed or Optuna seed can move the score by itself). To include
+    it, compare runs over several seeds, or change one thing while keeping the parameters fixed.
+    """
+    import numpy as np
+    from sklearn.metrics import roc_auc_score
+    from sklearn.model_selection import KFold, StratifiedKFold
+
+    def _load(p):
+        return np.load(p) if isinstance(p, (str, Path)) else np.asarray(p)
+
+    y, a, b = np.asarray(y), _load(oof_a), _load(oof_b)
+    if not (len(y) == len(a) == len(b)):
+        raise ValueError(f"length mismatch: y={len(y)}, {names[0]}={len(a)}, {names[1]}={len(b)}")
+    metric = metric or roc_auc_score
+    sign = 1.0 if higher_is_better else -1.0
+    if folds is None:
+        splitter = (StratifiedKFold if stratified else KFold)(n_splits=n_splits, shuffle=True, random_state=seed)
+        folds = list(splitter.split(np.zeros(len(y)), y))
+
+    def gain(idx):
+        return sign * (metric(y[idx], b[idx]) - metric(y[idx], a[idx]))
+
+    per_fold = np.array([gain(va) for _, va in folds])
+    k = len(per_fold)
+    se = per_fold.std(ddof=1) / np.sqrt(k) if k > 1 else float("nan")
+    result = {
+        "score_a": metric(y, a), "score_b": metric(y, b),
+        "per_fold_gain": per_fold, "folds_better": int((per_fold > 0).sum()), "n_folds": k,
+        "mean_gain": per_fold.mean(), "paired_se": se, "t": per_fold.mean() / se if se > 0 else float("nan"),
+    }
+
+    if n_boot:
+        rng = np.random.default_rng(boot_seed)
+        boots = np.array([gain(rng.integers(0, len(y), len(y))) for _ in range(n_boot)])
+        lo, hi = np.percentile(boots, [2.5, 97.5])
+        result.update(boot_ci=(lo, hi))
+        if lo > 0:
+            verdict = f"{names[1]} is better (bootstrap 95% CI excludes 0)"
+        elif hi < 0:
+            verdict = f"{names[0]} is better (bootstrap 95% CI excludes 0)"
+        else:
+            verdict = "no clear difference (bootstrap 95% CI includes 0)"
+    else:
+        verdict = f"{result['folds_better']}/{k} folds favour {names[1]}; run with n_boot > 0 for a verdict"
+    result["verdict"] = verdict
+
+    if verbose:
+        direction = "higher is better" if higher_is_better else "lower is better"
+        print(f"{names[0]}: {result['score_a']:.5f}   {names[1]}: {result['score_b']:.5f}   ({direction})")
+        print(f"gain of {names[1]} per fold: {np.round(per_fold, 5).tolist()}   "
+              f"better on {result['folds_better']}/{k} folds")
+        print(f"mean gain {result['mean_gain']:+.5f}   paired SE {se:.5f}   t {result['t']:+.2f}")
+        if n_boot:
+            print(f"paired bootstrap 95% CI of the gain: [{lo:+.5f}, {hi:+.5f}]  ({n_boot} resamples)")
+        print("verdict:", verdict)
+    return result
