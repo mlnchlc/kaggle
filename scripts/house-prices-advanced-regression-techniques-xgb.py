@@ -48,7 +48,7 @@ overview = pd.DataFrame({
     "n_unique": train_df.nunique(),
 })
 print(overview["dtype"].value_counts().to_string(), "\n")
-print(overview[overview["missing"] > 0].sort_values("missing", ascending=False).to_string())
+print(overview.loc[overview["missing"] > 0].sort_values("missing", ascending=False).to_string())
 
 
 # %%
@@ -297,7 +297,7 @@ errors = pd.DataFrame({
     "Predicted": price_pred.round(),
     "LogError": oof - y,
 })
-print(errors.reindex(errors["LogError"].abs().sort_values(ascending=False).index).head(10).to_string(index=False))
+print(errors.sort_values("LogError", key=lambda s: s.abs(), ascending=False).head(10).to_string(index=False))
 
 
 

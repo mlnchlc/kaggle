@@ -39,3 +39,11 @@ override-dependencies = [
     "pyarrow>=26",
     "scikit-learn>=1.9.1",
 ]
+
+[tool.basedpyright]
+# Zed's Python language server. "standard" is plain pyright's level; basedpyright's stricter default flags
+# every pandas/XGBoost call as partially unknown, uppercase X as a redefined constant, and the scripts'
+# `from kaggle_utils import ...` as an implicit relative import (scripts/ is not a package).
+typeCheckingMode = "standard"
+venvPath = "."
+venv = ".venv"
