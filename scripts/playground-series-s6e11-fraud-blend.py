@@ -15,6 +15,10 @@
 
 # %%
 import os
+# Work from this file's folder even when an editor (e.g. Zed's REPL) starts the kernel in the repo root,
+# so the kaggle_utils symlink and the ../data paths resolve.
+if os.path.isfile(os.path.join("scripts", "kaggle_utils.py")):
+    os.chdir("scripts")
 
 import numpy as np
 import pandas as pd

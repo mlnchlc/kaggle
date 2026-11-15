@@ -28,7 +28,7 @@ Personal Kaggle tabular-competition workspace (the owner is learning ML, aiming 
   - SHAP is computed on held-out fold rows only.
 - `scripts/` is the **source of truth**: plain `# %%` percent-format `.py` files (no outputs, no metadata header). Edit and create code here. `notebooks/*.ipynb` are generated from them with jupytext.
   - Names match the notebooks: `<kaggle-slug>-<tag>.py`.
-  - Run them from inside `scripts/`: `cd scripts && ../.venv/bin/python <file>.py`. They read and write the same root `data/<slug>/` folders as the notebooks. `scripts/output/` is gitignored.
+  - Run them from inside `scripts/`: `cd scripts && ../.venv/bin/python <file>.py`. Each script's first code cell does `os.chdir("scripts")` when it finds itself in the repo root, because Zed's REPL starts its kernel there (and ignores `jupyter.kernel_selections`). A new script needs the same guard at the top of its first code cell. They read and write the same root `data/<slug>/` folders as the notebooks. `scripts/output/` is gitignored.
   - Regenerate notebooks with `python3 tools/regen_notebooks.py` (`scripts/<name>.py` becomes `notebooks/<name>.ipynb`). It uses `jupytext --update`, so outputs already in a local notebook survive. Never hand-edit code in a notebook: the next regeneration overwrites it. A new script needs no other setup.
 - The Titanic and Spaceship notebooks use one `build_pipeline(params)` for tuning, holdout and final fit.
 

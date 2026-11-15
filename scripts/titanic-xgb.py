@@ -1,4 +1,9 @@
 # %%
+import os
+# Work from this file's folder even when an editor (e.g. Zed's REPL) starts the kernel in the repo root,
+# so the kaggle_utils symlink and the ../data paths resolve.
+if os.path.isfile(os.path.join("scripts", "kaggle_utils.py")):
+    os.chdir("scripts")
 import optuna
 from sklearn.model_selection import StratifiedKFold, cross_val_score
 from sklearn.metrics import roc_auc_score, classification_report

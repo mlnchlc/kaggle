@@ -1,5 +1,9 @@
 # %%
 import os
+# Work from this file's folder even when an editor (e.g. Zed's REPL) starts the kernel in the repo root,
+# so the kaggle_utils symlink and the ../data paths resolve.
+if os.path.isfile(os.path.join("scripts", "kaggle_utils.py")):
+    os.chdir("scripts")
 import sys
 from pathlib import Path
 import numpy as np
@@ -40,7 +44,7 @@ kaggle_output_file = os.path.join(data_dir, "submission_tabpfn.csv")
 print(f"Train shape: {train_df.shape}")
 print(f"Test shape:  {kaggle_test_df.shape}")
 
-# %%
+ # %%
 # 1. Separate features and target
 X = train_df.drop(columns=["satisfaction", "id"])
 X_kaggle_test = kaggle_test_df.drop(columns=["id"], errors="ignore")

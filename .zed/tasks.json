@@ -1,0 +1,11 @@
+[
+  {
+    // Run the open script with the repo venv, from the script's own folder so ../data paths resolve.
+    "label": "Run script (.venv)",
+    "command": "$ZED_WORKTREE_ROOT/.venv/bin/python",
+    "args": ["$ZED_FILE"],
+    "cwd": "$ZED_DIRNAME",
+    "env": { "MPLBACKEND": "Agg" },
+    "reveal": "always"
+  }
+]

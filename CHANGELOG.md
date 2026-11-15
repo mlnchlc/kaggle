@@ -2,6 +2,12 @@
 
 All notable changes to these Kaggle notebooks. Dates are when the change was made.
 
+## 2026-11-15
+
+### Fixed (running in Zed)
+- **Scripts run from the repo root too.** Zed's REPL starts its kernel in the repo root, where `from kaggle_utils import ...` failed and `../data` pointed outside the repo. Each script's first code cell now switches into `scripts/` when it finds itself in the root. Setting `jupyter.kernel_selections` to a kernel that starts in `scripts/` did not work, because Zed ignores it and launches the venv directly.
+- **`.zed/tasks.json`**: a "Run script (.venv)" task that runs the open file with the repo venv from its own folder.
+
 ## 2026-10-31
 
 Older entries below use the original file names and paths.
